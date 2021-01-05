@@ -52,10 +52,6 @@ int main()
 		cout<<*(perms+i);
 	cout<<"\t";
 
-	// to remove quotes while printing using cout
-	fileName.erase(remove(fileName.begin(), fileName.end(), '\"'), fileName.end());
-	cout << fileName << "\t";
-	
 	string size_chart = "BKMGTP"; // K - Kilobyte, M - Megabyte, G - Gigabyte, T - Terabyte, P - Petabyte;
 	
 	if( !de.is_directory() ) {
@@ -70,7 +66,21 @@ int main()
 		cout << fixed << setprecision( 2 ) << size;
 		if ( i > 0 )
 			cout << size_chart[i];
-		cout << "B" << endl;
+		cout << "B\t";
 	}
+
+	struct stat file_stats;
+        if( stat(fileName.c_str(), &file_stats) == 0) {
+                time_t modifiedTime = file_stats.st_mtime;
+                string time = asctime(localtime(&modifiedTime)); 
+		time.pop_back(); 
+		cout << time << "\t";
+        }
+        else
+                cout << "some problem fetching file last modified time\t";
+	
+	// to remove quotes while printing using cout
+        fileName.erase(remove(fileName.begin(), fileName.end(), '\"'), fileName.end());
+        cout << fileName << endl;
     }
 }
