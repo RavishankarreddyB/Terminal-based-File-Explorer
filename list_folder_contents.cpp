@@ -8,21 +8,22 @@
 
 using namespace std;
 
-char* file_permissions(char *fileName) {
+char* file_permissions(char *fileName, filesystem::directory_entry entry) {
 	struct stat file_statistics;
-	char *stats=(char*)malloc(sizeof(char)*10);
+	char *stats=(char*)malloc(sizeof(char)*11);
 	if( stat(fileName, &file_statistics) == 0 ) {
 		mode_t perms = file_statistics.st_mode;
-		stats[0] = (perms & S_IRUSR) ? 'r' : '-';
-		stats[1] = (perms & S_IWUSR) ? 'w' : '-';
-		stats[2] = (perms & S_IXUSR) ? 'x' : '-';
-		stats[3] = (perms & S_IRGRP) ? 'r' : '-';
-        	stats[4] = (perms & S_IWGRP) ? 'w' : '-';
-        	stats[5] = (perms & S_IXGRP) ? 'x' : '-';
-        	stats[6] = (perms & S_IROTH) ? 'r' : '-';
-        	stats[7] = (perms & S_IWOTH) ? 'w' : '-';
-        	stats[8] = (perms & S_IXOTH) ? 'x' : '-';
-        	stats[9] = '\0';
+		stats[0] = (entry.is_directory()) ? 'd' : entry.is_regular_file() ? '-' : '-';
+		stats[1] = (perms & S_IRUSR) ? 'r' : '-';
+		stats[2] = (perms & S_IWUSR) ? 'w' : '-';
+		stats[3] = (perms & S_IXUSR) ? 'x' : '-';
+		stats[4] = (perms & S_IRGRP) ? 'r' : '-';
+        	stats[5] = (perms & S_IWGRP) ? 'w' : '-';
+        	stats[6] = (perms & S_IXGRP) ? 'x' : '-';
+        	stats[7] = (perms & S_IROTH) ? 'r' : '-';
+        	stats[8] = (perms & S_IWOTH) ? 'w' : '-';
+        	stats[9] = (perms & S_IXOTH) ? 'x' : '-';
+        	stats[10] = '\0';
 		return stats;
 	}
 	else
@@ -39,23 +40,19 @@ int main()
 	//cout << entry.path() << endl;
 	
 	filesystem::directory_entry de(entry.path());
-	if( de.is_directory() )
-		cout<<"dir\t";
-	else if( de.is_regular_file() )
-		cout<<"file\t";
 
 	// to display just the name
 	string fileName = entry.path().filename();
 
-	char* perms = file_permissions(&fileName[0]);
-	for(int i=0;i<9;i++)
+	char* perms = file_permissions(&fileName[0], entry);
+	for(int i=0;*(perms+i) != '\0';i++)
 		cout<<*(perms+i);
 	cout<<"\t";
 
 	string size_chart = "BKMGTP"; // K - Kilobyte, M - Megabyte, G - Gigabyte, T - Terabyte, P - Petabyte;
 	
 	if( !de.is_directory() ) {
-		cout << de.file_size() << "\t";
+		//cout << de.file_size() << "\t";
 		// convert to human readable
 		int i=0;
 		double size = de.file_size();
@@ -68,6 +65,8 @@ int main()
 			cout << size_chart[i];
 		cout << "B\t";
 	}
+	else
+		cout << "\t";
 
 	struct stat file_stats;
         if( stat(fileName.c_str(), &file_stats) == 0) {
