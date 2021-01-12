@@ -7,6 +7,9 @@
 #include <sys/types.h>
 
 #include <ncurses.h>
+#include <vector>
+
+#include <fstream>
 
 using namespace std;
 
@@ -34,7 +37,6 @@ char* file_permissions(char *fileName, filesystem::directory_entry entry) {
 
 int main()
 {
-setlocale(LC_ALL, "");
 	// Initialize curses
 	initscr();
 	cbreak();
@@ -50,7 +52,8 @@ setlocale(LC_ALL, "");
 	//mvaddstr(maxlines, 0, "Press any key to quit");
 	
 	string current_path = filesystem::current_path();
-
+	
+	vector<string> fileNames;
     //range-based for loop
     for (const auto & entry : filesystem::directory_iterator(current_path)) {
 	// to display full file path
@@ -60,7 +63,9 @@ setlocale(LC_ALL, "");
 
 	// to display just the name
 	string fileName = entry.path().filename();
-
+	
+	fileNames.push_back(entry.path());
+	
 	char* perms = file_permissions(&fileName[0], entry);
 	for(int i=0;*(perms+i) != '\0';i++)
 		printw("%c",*(perms+i));
@@ -122,10 +127,19 @@ setlocale(LC_ALL, "");
 		}
 		else if ( ch == KEY_DOWN ) {
 			curr_y_pos++;
-			if(curr_y_pos > 7)
-				curr_y_pos=7;
+			if(curr_y_pos >= (int)fileNames.size())
+				curr_y_pos=fileNames.size()-1;
 			move(curr_y_pos, curr_x_pos);
 			//printw("down arrow is pressed\n");
+		}
+		else if ( ch == '\n' ) {
+			clear();
+			ifstream inputFile(fileNames[curr_y_pos]);
+			string line;
+			if(inputFile.is_open()) {
+				while( getline(inputFile, line) )
+					printw("%s\n", (line.c_str()));
+			}
 		}
 		//else if ( ch == KEY_RIGHT )
 			//printw("right key is pressed\n");
