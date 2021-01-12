@@ -6,6 +6,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <ncurses.h>
+
 using namespace std;
 
 char* file_permissions(char *fileName, filesystem::directory_entry entry) {
@@ -32,7 +34,22 @@ char* file_permissions(char *fileName, filesystem::directory_entry entry) {
 
 int main()
 {
-    string current_path = filesystem::current_path();
+setlocale(LC_ALL, "");
+	// Initialize curses
+	initscr();
+	cbreak();
+
+	clear();
+	//int maxlines = LINES - 1;
+	//int maxcols = COLS - 1;
+	int curr_x_pos = 0, curr_y_pos = 0;
+
+	//mvaddch(0, 0, '0');
+	//mvaddch(maxlines, maxcols/2, '1');
+	//mvaddch(0, maxcols, '2');
+	//mvaddstr(maxlines, 0, "Press any key to quit");
+	
+	string current_path = filesystem::current_path();
 
     //range-based for loop
     for (const auto & entry : filesystem::directory_iterator(current_path)) {
@@ -46,8 +63,8 @@ int main()
 
 	char* perms = file_permissions(&fileName[0], entry);
 	for(int i=0;*(perms+i) != '\0';i++)
-		cout<<*(perms+i);
-	cout<<"\t";
+		printw("%c",*(perms+i));
+	printw("\t");
 
 	string size_chart = "BKMGTP"; // K - Kilobyte, M - Megabyte, G - Gigabyte, T - Terabyte, P - Petabyte;
 	
@@ -60,26 +77,66 @@ int main()
 			size=size/1024;
 			i++;
 		}
-		cout << fixed << setprecision( 2 ) << size;
+		//cout << fixed << setprecision( 2 ) << size;
+		printw("%.2lf",size);
 		if ( i > 0 )
-			cout << size_chart[i];
-		cout << "B\t";
+			printw("%c",size_chart[i]);
+			//cout << size_chart[i];
+		//cout << "B\t";
+		printw("B\t");
 	}
 	else
-		cout << "\t";
+		printw("\t");
+		//cout << "\t";
 
 	struct stat file_stats;
         if( stat(fileName.c_str(), &file_stats) == 0) {
                 time_t modifiedTime = file_stats.st_mtime;
                 string time = asctime(localtime(&modifiedTime)); 
 		time.pop_back(); 
-		cout << time << "\t";
+		//cout << time << "\t";
+		addstr(time.c_str());
+		printw("\t");
         }
         else
-                cout << "some problem fetching file last modified time\t";
+		printw("some problem fetching file last modified time\t");
+                //cout << "some problem fetching file last modified time\t";
 	
 	// to remove quotes while printing using cout
         fileName.erase(remove(fileName.begin(), fileName.end(), '\"'), fileName.end());
-        cout << fileName << endl;
+        //cout << fileName << endl;
+	addstr(fileName.c_str());
+	printw("\n");
     }
+	refresh();
+	move(curr_y_pos, curr_x_pos);
+	int ch;
+	keypad(stdscr, true);
+	while((ch = getch()) != 'q') {
+		if( ch == KEY_UP ) {
+			curr_y_pos--;
+			if(curr_y_pos < 1)
+				curr_y_pos=0;
+			move(curr_y_pos, curr_x_pos); 
+			//printw("up arrow is pressed\n");
+		}
+		else if ( ch == KEY_DOWN ) {
+			curr_y_pos++;
+			if(curr_y_pos > 7)
+				curr_y_pos=7;
+			move(curr_y_pos, curr_x_pos);
+			//printw("down arrow is pressed\n");
+		}
+		//else if ( ch == KEY_RIGHT )
+			//printw("right key is pressed\n");
+		//else if ( ch == KEY_LEFT )
+			//printw("left key is pressed\n");
+		//else 
+		//	printw("the key pressed is %c\n", ch);
+		refresh();
+	}
+	//while((ch = getchar()) != 'q');
+		//printw("%c",ch);
+	noecho();
+	endwin();
 }
