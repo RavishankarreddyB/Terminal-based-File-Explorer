@@ -115,31 +115,72 @@ int main()
     }
 	refresh();
 	move(curr_y_pos, curr_x_pos);
-	int ch;
+	int ch, height, width, fileOpen=0, line_count=0;
 	keypad(stdscr, true);
+	WINDOW *new_window;
 	while((ch = getch()) != 'q') {
 		if( ch == KEY_UP ) {
 			curr_y_pos--;
-			if(curr_y_pos < 1)
+			if(curr_y_pos < 0)
 				curr_y_pos=0;
 			move(curr_y_pos, curr_x_pos); 
 			//printw("up arrow is pressed\n");
 		}
 		else if ( ch == KEY_DOWN ) {
 			curr_y_pos++;
-			if(curr_y_pos >= (int)fileNames.size())
+			if(fileOpen == 1) {
+				if(curr_y_pos > height)
+					wscrl(new_window, 1);
+				if(curr_y_pos >= line_count)
+					curr_y_pos=line_count;
+			}
+			else if(fileOpen == 0 && curr_y_pos >= (int)fileNames.size())
 				curr_y_pos=fileNames.size()-1;
 			move(curr_y_pos, curr_x_pos);
 			//printw("down arrow is pressed\n");
 		}
 		else if ( ch == '\n' ) {
 			clear();
-			ifstream inputFile(fileNames[curr_y_pos]);
+			fileOpen=1;
+			ifstream inputFileCount(fileNames[curr_y_pos]);
 			string line;
+			//fstream fp;
+			//char cha;
+			
+			while (getline(inputFileCount, line))
+        			line_count++;
+			inputFileCount.close();
+
+			ifstream inputFile(fileNames[curr_y_pos]);			
+	
+			getmaxyx(stdscr, height, width);
+			printw("height  = %d\n", line_count);
+			new_window = newwin(100, width - 2, 1, 1);
+			refresh();
+			wresize(new_window, line_count, width);			
+			scrollok(new_window,TRUE);
+			//wrefresh(new_window);
+			int i=1;
 			if(inputFile.is_open()) {
-				while( getline(inputFile, line) )
-					printw("%s\n", (line.c_str()));
+				while( getline(inputFile, line) ) {
+					mvwprintw(new_window, i, 0,  "%s\n", (line.c_str()));
+					wrefresh(new_window);
+					i++;
+				}
+				//wmove(new_window,0,0);
+				//delwin(new_window);
+				inputFile.close();
 			}
+			//fp.open(fileNames[curr_y_pos].filename().c_str(), fstream::in);
+			//if(!fp) {
+			//	printw("Error occured in opening file\n");
+			//}
+			//else {
+			//	while(fp>>noskipws>>cha)
+			//		printw("%s\n", cha);
+			//	fp.close();
+			//	printw("\n");
+			//}
 		}
 		//else if ( ch == KEY_RIGHT )
 			//printw("right key is pressed\n");
@@ -147,7 +188,7 @@ int main()
 			//printw("left key is pressed\n");
 		//else 
 		//	printw("the key pressed is %c\n", ch);
-		refresh();
+		//refresh();
 	}
 	//while((ch = getchar()) != 'q');
 		//printw("%c",ch);
