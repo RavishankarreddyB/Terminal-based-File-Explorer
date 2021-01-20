@@ -115,73 +115,79 @@ int main()
     }
 	refresh();
 	move(curr_y_pos, curr_x_pos);
-	int ch, height, width, fileOpen=0, line_count=0;
+	int ch, height, width, fileOpen=0, line_count=0, linesCount=0;
 	keypad(stdscr, true);
-	WINDOW *new_window;
-	while((ch = getch()) != 'q') {
+	WINDOW *pad;
+	ch=wgetch(stdscr);
+	while(ch != 'q') {
 		if( ch == KEY_UP ) {
-			curr_y_pos--;
-			if(curr_y_pos < 0)
-				curr_y_pos=0;
-			move(curr_y_pos, curr_x_pos); 
-			//printw("up arrow is pressed\n");
+			if(curr_y_pos != 0) {
+                                if(fileOpen == 1 && curr_y_pos == linesCount) {
+                                        curr_y_pos--;
+                                        linesCount--;
+                                        prefresh(pad, linesCount, 0, 0, 0, height-1, width-1);
+                                }
+                                else
+                                        curr_y_pos--;
+                        }
+                        if(fileOpen == 0)
+                                move(curr_y_pos, curr_x_pos);
+                        else if(fileOpen == 1) {
+                                wmove(pad, curr_y_pos, curr_x_pos);
+                                prefresh(pad,linesCount, 0, 0,0, height-1, width-1);
+                        }
 		}
 		else if ( ch == KEY_DOWN ) {
-			curr_y_pos++;
-			if(fileOpen == 1) {
-				if(curr_y_pos > height)
-					wscrl(new_window, 1);
-				if(curr_y_pos >= line_count)
-					curr_y_pos=line_count;
-			}
-			else if(fileOpen == 0 && curr_y_pos >= (int)fileNames.size())
-				curr_y_pos=fileNames.size()-1;
-			move(curr_y_pos, curr_x_pos);
-			//printw("down arrow is pressed\n");
+			if(curr_y_pos == height-1 && linesCount == line_count-1)
+                                continue;
+                        else if(fileOpen == 1 && curr_y_pos != line_count-1 && curr_y_pos == linesCount+height-1) {
+                                curr_y_pos++;
+                                linesCount++;
+                                prefresh(pad, linesCount, 0, 0, 0, height-1, width-1);
+                        }
+                        else if(fileOpen == 0 || curr_y_pos != line_count-1)
+                                curr_y_pos++;
+                
+		        if(fileOpen == 0)
+                                move(curr_y_pos, curr_x_pos);
+                        else if(fileOpen == 1) {
+                                wmove(pad, curr_y_pos, curr_x_pos);
+                                prefresh(pad,linesCount, 0, 0,0, height-1, width-1);
+                        }
 		}
 		else if ( ch == '\n' ) {
 			clear();
 			fileOpen=1;
 			ifstream inputFileCount(fileNames[curr_y_pos]);
 			string line;
-			//fstream fp;
-			//char cha;
 			
 			while (getline(inputFileCount, line))
         			line_count++;
 			inputFileCount.close();
-
 			ifstream inputFile(fileNames[curr_y_pos]);			
-	
+			
 			getmaxyx(stdscr, height, width);
-			printw("height  = %d\n", line_count);
-			new_window = newwin(100, width - 2, 1, 1);
-			refresh();
-			wresize(new_window, line_count, width);			
-			scrollok(new_window,TRUE);
-			//wrefresh(new_window);
-			int i=1;
+			
+			pad=newpad(line_count+1, width);
+			keypad(pad, true);
+			//wprintw(pad, "height  = %d\n", line_count);	
+
+			scrollok(pad, true);
+
 			if(inputFile.is_open()) {
 				while( getline(inputFile, line) ) {
-					mvwprintw(new_window, i, 0,  "%s\n", (line.c_str()));
-					wrefresh(new_window);
-					i++;
+					wprintw(pad, "%s\n", line.c_str());
 				}
-				//wmove(new_window,0,0);
-				//delwin(new_window);
-				inputFile.close();
 			}
-			//fp.open(fileNames[curr_y_pos].filename().c_str(), fstream::in);
-			//if(!fp) {
-			//	printw("Error occured in opening file\n");
-			//}
-			//else {
-			//	while(fp>>noskipws>>cha)
-			//		printw("%s\n", cha);
-			//	fp.close();
-			//	printw("\n");
-			//}
+			inputFile.close();
+			curr_y_pos=0;
+			wmove(pad, curr_y_pos, curr_x_pos);
+			prefresh(pad, curr_y_pos, 0, 0, 0, height-1, width-1);
 		}
+		if(fileOpen == 1)
+			ch=wgetch(pad);
+		else
+			ch=wgetch(stdscr);
 		//else if ( ch == KEY_RIGHT )
 			//printw("right key is pressed\n");
 		//else if ( ch == KEY_LEFT )
@@ -190,8 +196,7 @@ int main()
 		//	printw("the key pressed is %c\n", ch);
 		//refresh();
 	}
-	//while((ch = getchar()) != 'q');
-		//printw("%c",ch);
 	noecho();
+	delwin(pad);
 	endwin();
 }
