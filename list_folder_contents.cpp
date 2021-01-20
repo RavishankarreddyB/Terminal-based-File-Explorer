@@ -13,33 +13,39 @@
 
 using namespace std;
 
-char* file_permissions(char *fileName, filesystem::directory_entry entry) {
+void file_permissions(char *fileName, filesystem::directory_entry entry, string &permissions) {
 	struct stat file_statistics;
-	char *stats=(char*)malloc(sizeof(char)*11);
+	//char *stats=(char*)malloc(sizeof(char)*11);
+	permissions="";
 	if( stat(fileName, &file_statistics) == 0 ) {
 		mode_t perms = file_statistics.st_mode;
-		stats[0] = (entry.is_directory()) ? 'd' : entry.is_regular_file() ? '-' : '-';
-		stats[1] = (perms & S_IRUSR) ? 'r' : '-';
-		stats[2] = (perms & S_IWUSR) ? 'w' : '-';
-		stats[3] = (perms & S_IXUSR) ? 'x' : '-';
-		stats[4] = (perms & S_IRGRP) ? 'r' : '-';
-        	stats[5] = (perms & S_IWGRP) ? 'w' : '-';
-        	stats[6] = (perms & S_IXGRP) ? 'x' : '-';
-        	stats[7] = (perms & S_IROTH) ? 'r' : '-';
-        	stats[8] = (perms & S_IWOTH) ? 'w' : '-';
-        	stats[9] = (perms & S_IXOTH) ? 'x' : '-';
-        	stats[10] = '\0';
-		return stats;
+		permissions += (entry.is_directory()) ? 'd' : entry.is_regular_file() ? '-' : '-';
+		permissions += (perms & S_IRUSR) ? 'r' : '-';
+		permissions += (perms & S_IWUSR) ? 'w' : '-';
+		permissions += (perms & S_IXUSR) ? 'x' : '-';
+		permissions += (perms & S_IRGRP) ? 'r' : '-';
+        	permissions += (perms & S_IWGRP) ? 'w' : '-';
+        	permissions += (perms & S_IXGRP) ? 'x' : '-';
+        	permissions += (perms & S_IROTH) ? 'r' : '-';
+        	permissions += (perms & S_IWOTH) ? 'w' : '-';
+        	permissions += (perms & S_IXOTH) ? 'x' : '-';
 	}
-	else
-		return strerror(errno);
 }
 
-void display_current_directory(vector<string> &fileNames) {
-	string current_path = filesystem::current_path();
-	
+void display_saved_dir_data(vector<string> &displayStrings, int curr_y_pos) {
+	//int size=(int)displayStrings.size();
+	for(auto itr = displayStrings.begin(); itr != displayStrings.end() ;itr++)
+		printw("%s", (*itr).c_str());
+	refresh();
+	move(curr_y_pos, 0);
+}
+
+void fetch_and_display_current_directory(vector<string> &fileNames, vector<string> &displayStrings) {
+	string current_path = filesystem::current_path(), perms, completeDisplay;
+
     //range-based for loop
     for (const auto & entry : filesystem::directory_iterator(current_path)) {
+	completeDisplay="";
 	// to display full file path
 	//cout << entry.path() << endl;
 	
@@ -50,12 +56,15 @@ void display_current_directory(vector<string> &fileNames) {
 	
 	fileNames.push_back(entry.path());
 	
-	char* perms = file_permissions(&fileName[0], entry);
-	for(int i=0;*(perms+i) != '\0';i++)
-		printw("%c",*(perms+i));
-	printw("\t");
+	file_permissions(&fileName[0], entry, perms);
+	completeDisplay+=perms;
 
-	string size_chart = "BKMGTP"; // K - Kilobyte, M - Megabyte, G - Gigabyte, T - Terabyte, P - Petabyte;
+	for(int i=0; i < 10;i++)
+		printw("%c", perms[i]);
+	printw("\t");
+	completeDisplay+='\t';
+
+	string size_chart = "BKMGTP", completeSize; // K - Kilobyte, M - Megabyte, G - Gigabyte, T - Terabyte, P - Petabyte;
 	
 	if( !de.is_directory() ) {
 		//cout << de.file_size() << "\t";
@@ -68,15 +77,23 @@ void display_current_directory(vector<string> &fileNames) {
 		}
 		//cout << fixed << setprecision( 2 ) << size;
 		printw("%.2lf",size);
-		if ( i > 0 )
+		completeSize+=to_string(size);
+		if ( i > 0 ) {
 			printw("%c",size_chart[i]);
+			completeSize+=size_chart[i];
+		}
 			//cout << size_chart[i];
 		//cout << "B\t";
 		printw("B\t");
+		completeSize+='B';
 	}
-	else
+	else {
 		printw("\t");
+		completeSize="directory";
 		//cout << "\t";
+	}
+	completeDisplay+=completeSize;
+	completeDisplay+='\t';
 
 	struct stat file_stats;
         if( stat(fileName.c_str(), &file_stats) == 0) {
@@ -85,7 +102,9 @@ void display_current_directory(vector<string> &fileNames) {
 		time.pop_back(); 
 		//cout << time << "\t";
 		addstr(time.c_str());
+		completeDisplay+=time.c_str();
 		printw("\t");
+		completeDisplay+='\t';
         }
         else
 		printw("some problem fetching file last modified time\t");
@@ -95,7 +114,10 @@ void display_current_directory(vector<string> &fileNames) {
         fileName.erase(remove(fileName.begin(), fileName.end(), '\"'), fileName.end());
         //cout << fileName << endl;
 	addstr(fileName.c_str());
+	completeDisplay+=fileName.c_str();
 	printw("\n");
+	completeDisplay+='\n';
+	displayStrings.push_back(completeDisplay);
     }
 }
 
@@ -110,17 +132,17 @@ int main()
 	//int maxcols = COLS - 1;
 	int curr_x_pos = 0, curr_y_pos = 0;
 	
-	vector<string> fileNames, filePermissions;
+	vector<string> fileNames, displayStrings;
 
 	//mvaddch(0, 0, '0');
 	//mvaddch(maxlines, maxcols/2, '1');
 	//mvaddch(0, maxcols, '2');
 	//mvaddstr(maxlines, 0, "Press any key to quit");
-	display_current_directory(fileNames);
+	fetch_and_display_current_directory(fileNames, displayStrings);
 	
 	refresh();
 	move(curr_y_pos, curr_x_pos);
-	int ch, height, width, fileOpen=0, line_count=0, linesCount=0;
+	int ch, height, width, fileOpen=0, line_count=0, linesCount=0, y_before_fileOpen=0;
 	keypad(stdscr, true);
 	WINDOW *pad;
 	ch=wgetch(stdscr);
@@ -168,6 +190,7 @@ only after the curr_y_pos crosses height of screen, the screen is rolled up. oth
 		else if ( ch == '\n' ) {
 			clear();
 			fileOpen=1;
+			y_before_fileOpen=curr_y_pos;
 			ifstream inputFileCount(fileNames[curr_y_pos]);
 			string line;
 			
@@ -197,14 +220,16 @@ only after the curr_y_pos crosses height of screen, the screen is rolled up. oth
 			wmove(pad, curr_y_pos, curr_x_pos);
 			prefresh(pad, curr_y_pos, 0, 0, 0, height-1, width-1);
 		}
-		else if ( ch == 27) { //For detecting escape key
+		else if ( ch == 27 && fileOpen == 1) { //For detecting escape key
 			fileOpen=0;
 			delwin(pad);
-			curr_y_pos=0;
+			curr_y_pos=y_before_fileOpen;
 			linesCount=0;
-			display_current_directory(fileNames);
+			//display_saved_dir_data(displayStrings, curr_y_pos);
+			for(auto itr = displayStrings.begin(); itr != displayStrings.end() ;itr++)
+				printw("%s", (*itr).c_str());
 			refresh();
-			move(curr_y_pos, curr_x_pos);
+			move(curr_y_pos, 0);
 		}
 		if(fileOpen == 1)
 			ch=wgetch(pad);
