@@ -35,25 +35,9 @@ char* file_permissions(char *fileName, filesystem::directory_entry entry) {
 		return strerror(errno);
 }
 
-int main()
-{
-	// Initialize curses
-	initscr();
-	cbreak();
-
-	clear();
-	//int maxlines = LINES - 1;
-	//int maxcols = COLS - 1;
-	int curr_x_pos = 0, curr_y_pos = 0;
-
-	//mvaddch(0, 0, '0');
-	//mvaddch(maxlines, maxcols/2, '1');
-	//mvaddch(0, maxcols, '2');
-	//mvaddstr(maxlines, 0, "Press any key to quit");
-	
+void display_current_directory(vector<string> &fileNames) {
 	string current_path = filesystem::current_path();
 	
-	vector<string> fileNames;
     //range-based for loop
     for (const auto & entry : filesystem::directory_iterator(current_path)) {
 	// to display full file path
@@ -97,7 +81,7 @@ int main()
 	struct stat file_stats;
         if( stat(fileName.c_str(), &file_stats) == 0) {
                 time_t modifiedTime = file_stats.st_mtime;
-                string time = asctime(localtime(&modifiedTime)); 
+				string time = asctime(localtime(&modifiedTime));
 		time.pop_back(); 
 		//cout << time << "\t";
 		addstr(time.c_str());
@@ -113,6 +97,27 @@ int main()
 	addstr(fileName.c_str());
 	printw("\n");
     }
+}
+
+int main()
+{
+	// Initialize curses
+	initscr();
+	cbreak();
+
+	clear();
+	//int maxlines = LINES - 1;
+	//int maxcols = COLS - 1;
+	int curr_x_pos = 0, curr_y_pos = 0;
+	
+	vector<string> fileNames, filePermissions;
+
+	//mvaddch(0, 0, '0');
+	//mvaddch(maxlines, maxcols/2, '1');
+	//mvaddch(0, maxcols, '2');
+	//mvaddstr(maxlines, 0, "Press any key to quit");
+	display_current_directory(fileNames);
+	
 	refresh();
 	move(curr_y_pos, curr_x_pos);
 	int ch, height, width, fileOpen=0, line_count=0, linesCount=0;
@@ -120,6 +125,11 @@ int main()
 	WINDOW *pad;
 	ch=wgetch(stdscr);
 	while(ch != 'q') {
+/*
+curr_y_pos var is used to keep track of present line number 
+linesCount var is used to keep track of number of lines that are more than height of screen.
+only after the curr_y_pos crosses height of screen, the screen is rolled up. otherwise only the cursor position is updated.
+*/
 		if( ch == KEY_UP ) {
 			if(curr_y_pos != 0) {
                                 if(fileOpen == 1 && curr_y_pos == linesCount) {
@@ -168,7 +178,10 @@ int main()
 			
 			getmaxyx(stdscr, height, width);
 			
-			pad=newpad(line_count+1, width);
+			if(line_count > height)	
+				pad=newpad(line_count+1, width);
+			else
+				pad=newpad(height+1, width);
 			keypad(pad, true);
 			//wprintw(pad, "height  = %d\n", line_count);	
 
@@ -184,6 +197,15 @@ int main()
 			wmove(pad, curr_y_pos, curr_x_pos);
 			prefresh(pad, curr_y_pos, 0, 0, 0, height-1, width-1);
 		}
+		else if ( ch == 27) { //For detecting escape key
+			fileOpen=0;
+			delwin(pad);
+			curr_y_pos=0;
+			linesCount=0;
+			display_current_directory(fileNames);
+			refresh();
+			move(curr_y_pos, curr_x_pos);
+		}
 		if(fileOpen == 1)
 			ch=wgetch(pad);
 		else
@@ -197,6 +219,5 @@ int main()
 		//refresh();
 	}
 	noecho();
-	delwin(pad);
 	endwin();
 }
