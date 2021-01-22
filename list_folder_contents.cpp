@@ -13,7 +13,7 @@
 
 using namespace std;
 
-void file_permissions(char *fileName, filesystem::directory_entry entry, string &permissions) {
+void file_permissions(const char *fileName, filesystem::directory_entry entry, string &permissions) {
 	struct stat file_statistics;
 	//char *stats=(char*)malloc(sizeof(char)*11);
 	permissions="";
@@ -30,6 +30,8 @@ void file_permissions(char *fileName, filesystem::directory_entry entry, string 
         	permissions += (perms & S_IWOTH) ? 'w' : '-';
         	permissions += (perms & S_IXOTH) ? 'x' : '-';
 	}
+	//else
+		 //printw("%s\n", S_ISDIR(file_statistics.st_mode));
 }
 
 void display_saved_dir_data(vector<string> &displayStrings, int curr_y_pos) {
@@ -40,23 +42,30 @@ void display_saved_dir_data(vector<string> &displayStrings, int curr_y_pos) {
 	move(curr_y_pos, 0);
 }
 
-void fetch_and_display_current_directory(vector<string> &fileNames, vector<string> &displayStrings) {
-	string current_path = filesystem::current_path(), perms, completeDisplay;
-
+void fetch_and_display_current_directory(vector<string> &fileNames, vector<string> &displayStrings, string path="") {
+	string current_path, perms, completeDisplay;
+	if(path == "")
+		current_path = filesystem::current_path();
+	else
+		current_path = path;
+	
+	fileNames.clear(); displayStrings.clear();
+	//printw("%s\n", current_path.c_str());
     //range-based for loop
     for (const auto & entry : filesystem::directory_iterator(current_path)) {
 	completeDisplay="";
 	// to display full file path
 	//cout << entry.path() << endl;
-	
+	//printw("%s\n", entry.path().c_str());
 	filesystem::directory_entry de(entry.path());
 
 	// to display just the name
 	string fileName = entry.path().filename();
 	
 	fileNames.push_back(entry.path());
-	
-	file_permissions(&fileName[0], entry, perms);
+	//printw("%s\n", fileName.c_str());	
+	//file_permissions(&fileName[0], entry, perms);
+	file_permissions(entry.path().c_str(), entry, perms);
 	completeDisplay+=perms;
 
 	for(int i=0; i < 10;i++)
@@ -96,9 +105,9 @@ void fetch_and_display_current_directory(vector<string> &fileNames, vector<strin
 	completeDisplay+='\t';
 
 	struct stat file_stats;
-        if( stat(fileName.c_str(), &file_stats) == 0) {
+        if( stat(entry.path().c_str(), &file_stats) == 0) {
                 time_t modifiedTime = file_stats.st_mtime;
-				string time = asctime(localtime(&modifiedTime));
+		string time = asctime(localtime(&modifiedTime));
 		time.pop_back(); 
 		//cout << time << "\t";
 		addstr(time.c_str());
@@ -107,7 +116,8 @@ void fetch_and_display_current_directory(vector<string> &fileNames, vector<strin
 		completeDisplay+='\t';
         }
         else
-		printw("some problem fetching file last modified time\t");
+		printw("%s\n", S_ISDIR(file_stats.st_mode));
+		//printw("some problem fetching file last modified time\t");
                 //cout << "some problem fetching file last modified time\t";
 	
 	// to remove quotes while printing using cout
@@ -189,36 +199,46 @@ only after the curr_y_pos crosses height of screen, the screen is rolled up. oth
 		}
 		else if ( ch == '\n' ) {
 			clear();
-			fileOpen=1;
-			y_before_fileOpen=curr_y_pos;
-			ifstream inputFileCount(fileNames[curr_y_pos]);
-			string line;
-			
-			while (getline(inputFileCount, line))
-        			line_count++;
-			inputFileCount.close();
-			ifstream inputFile(fileNames[curr_y_pos]);			
-			
-			getmaxyx(stdscr, height, width);
-			
-			if(line_count > height)	
-				pad=newpad(line_count+1, width);
-			else
-				pad=newpad(height+1, width);
-			keypad(pad, true);
-			//wprintw(pad, "height  = %d\n", line_count);	
-
-			scrollok(pad, true);
-
-			if(inputFile.is_open()) {
-				while( getline(inputFile, line) ) {
-					wprintw(pad, "%s\n", line.c_str());
-				}
+			filesystem::directory_entry de(fileNames[curr_y_pos]);
+			if( de.is_directory() ) {
+				//printw("%s\n", fileNames[curr_y_pos].c_str());
+				fetch_and_display_current_directory(fileNames, displayStrings, fileNames[curr_y_pos]);
+				curr_y_pos=0;
+				refresh();
+				move(curr_y_pos, curr_x_pos);	
 			}
-			inputFile.close();
-			curr_y_pos=0;
-			wmove(pad, curr_y_pos, curr_x_pos);
-			prefresh(pad, curr_y_pos, 0, 0, 0, height-1, width-1);
+			else {
+				fileOpen=1;
+				y_before_fileOpen=curr_y_pos;
+				ifstream inputFileCount(fileNames[curr_y_pos]);
+				string line;
+			
+				while (getline(inputFileCount, line))
+					line_count++;
+				inputFileCount.close();
+				ifstream inputFile(fileNames[curr_y_pos]);			
+			
+				getmaxyx(stdscr, height, width);
+			
+				if(line_count > height)	
+					pad=newpad(line_count+1, width);
+				else
+					pad=newpad(height+1, width);
+				keypad(pad, true);
+				//wprintw(pad, "height  = %d\n", line_count);	
+
+				scrollok(pad, true);
+
+				if(inputFile.is_open()) {
+					while( getline(inputFile, line) ) {
+						wprintw(pad, "%s\n", line.c_str());
+					}
+				}
+				inputFile.close();
+				curr_y_pos=0;
+				wmove(pad, curr_y_pos, curr_x_pos);
+				prefresh(pad, curr_y_pos, 0, 0, 0, height-1, width-1);
+			}
 		}
 		else if ( ch == 27 && fileOpen == 1) { //For detecting escape key
 			fileOpen=0;
