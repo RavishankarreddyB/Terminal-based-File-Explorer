@@ -19,7 +19,7 @@ void file_permissions(const char *fileName, filesystem::directory_entry entry, s
 	permissions="";
 	if( stat(fileName, &file_statistics) == 0 ) {
 		mode_t perms = file_statistics.st_mode;
-		permissions += (entry.is_directory()) ? 'd' : entry.is_regular_file() ? '-' : '-';
+		permissions += (entry.is_directory()) ? 'd' : entry.is_regular_file() ? '-' : S_ISLNK(file_statistics.st_mode) ? 'l' : '-';
 		permissions += (perms & S_IRUSR) ? 'r' : '-';
 		permissions += (perms & S_IWUSR) ? 'w' : '-';
 		permissions += (perms & S_IXUSR) ? 'x' : '-';
@@ -31,7 +31,7 @@ void file_permissions(const char *fileName, filesystem::directory_entry entry, s
         	permissions += (perms & S_IXOTH) ? 'x' : '-';
 	}
 	//else
-		 //printw("%s\n", S_ISDIR(file_statistics.st_mode));
+	//	 printw("%s\n", S_ISDIR(file_statistics.st_mode));
 }
 
 void display_saved_dir_data(vector<string> &displayStrings, int curr_y_pos) {
@@ -42,21 +42,31 @@ void display_saved_dir_data(vector<string> &displayStrings, int curr_y_pos) {
 	move(curr_y_pos, 0);
 }
 
-void fetch_and_display_current_directory(vector<string> &fileNames, vector<string> &displayStrings, string path="") {
-	string current_path, perms, completeDisplay;
+void fetch_and_display_current_directory(WINDOW *pad, vector<string> &fileNames, vector<string> &displayStrings, string path="") {
+	string current_path, perms="", completeDisplay="";
 	if(path == "")
 		current_path = filesystem::current_path();
 	else
 		current_path = path;
+	//printw("parent path = %s, root path = %s\n", current_path.c_str(), filesystem::current_path().root_directory().c_str());
+	int height, width;
+	getmaxyx(stdscr, height, width);
 	
 	fileNames.clear(); displayStrings.clear();
 	//printw("%s\n", current_path.c_str());
     //range-based for loop
+
+	if( current_path != "/") {
+		printw("../\n");
+		displayStrings.push_back("../\n");
+	}
+
     for (const auto & entry : filesystem::directory_iterator(current_path)) {
 	completeDisplay="";
 	// to display full file path
 	//cout << entry.path() << endl;
 	//printw("%s\n", entry.path().c_str());
+	
 	filesystem::directory_entry de(entry.path());
 
 	// to display just the name
@@ -65,17 +75,19 @@ void fetch_and_display_current_directory(vector<string> &fileNames, vector<strin
 	fileNames.push_back(entry.path());
 	//printw("%s\n", fileName.c_str());	
 	//file_permissions(&fileName[0], entry, perms);
+	
 	file_permissions(entry.path().c_str(), entry, perms);
+	
 	completeDisplay+=perms;
 
-	for(int i=0; i < 10;i++)
+	for(int i=0; i < (int)perms.length();i++)
 		printw("%c", perms[i]);
 	printw("\t");
 	completeDisplay+='\t';
 
 	string size_chart = "BKMGTP", completeSize; // K - Kilobyte, M - Megabyte, G - Gigabyte, T - Terabyte, P - Petabyte;
 	
-	if( !de.is_directory() ) {
+	if( !de.is_directory() && perms.length() > 0 && perms[0] != 'l') {
 		//cout << de.file_size() << "\t";
 		// convert to human readable
 		int i=0;
@@ -98,14 +110,19 @@ void fetch_and_display_current_directory(vector<string> &fileNames, vector<strin
 	}
 	else {
 		printw("\t");
+		if(perms.length() > 0 && perms[0] != 'l')
 		completeSize="directory";
+		else
+		completeSize="link";
 		//cout << "\t";
 	}
+	
 	completeDisplay+=completeSize;
 	completeDisplay+='\t';
 
+	
 	struct stat file_stats;
-        if( stat(entry.path().c_str(), &file_stats) == 0) {
+        if( current_path != "/" && stat(entry.path().c_str(), &file_stats) == 0) {
                 time_t modifiedTime = file_stats.st_mtime;
 		string time = asctime(localtime(&modifiedTime));
 		time.pop_back(); 
@@ -116,12 +133,13 @@ void fetch_and_display_current_directory(vector<string> &fileNames, vector<strin
 		completeDisplay+='\t';
         }
         else
-		printw("%s\n", S_ISDIR(file_stats.st_mode));
+		printw("%s\t", S_ISDIR(file_stats.st_mode));
 		//printw("some problem fetching file last modified time\t");
                 //cout << "some problem fetching file last modified time\t";
 	
+	
 	// to remove quotes while printing using cout
-        fileName.erase(remove(fileName.begin(), fileName.end(), '\"'), fileName.end());
+	fileName.erase(remove(fileName.begin(), fileName.end(), '\"'), fileName.end());
         //cout << fileName << endl;
 	addstr(fileName.c_str());
 	completeDisplay+=fileName.c_str();
@@ -129,6 +147,9 @@ void fetch_and_display_current_directory(vector<string> &fileNames, vector<strin
 	completeDisplay+='\n';
 	displayStrings.push_back(completeDisplay);
     }
+	move(height-1, 0);
+	printw("%s\n",current_path.c_str());
+	move(1,0);
 }
 
 int main()
@@ -137,24 +158,31 @@ int main()
 	initscr();
 	cbreak();
 
+	noecho();
 	clear();
 	//int maxlines = LINES - 1;
 	//int maxcols = COLS - 1;
-	int curr_x_pos = 0, curr_y_pos = 0;
-	
+	int curr_x_pos = 0, curr_y_pos = 0, ch, height, width, fileOpen=0, line_count=0, linesCount=0, y_before_fileOpen=0;
+	string FILE;
 	vector<string> fileNames, displayStrings;
 
-	//mvaddch(0, 0, '0');
-	//mvaddch(maxlines, maxcols/2, '1');
-	//mvaddch(0, maxcols, '2');
-	//mvaddstr(maxlines, 0, "Press any key to quit");
-	fetch_and_display_current_directory(fileNames, displayStrings);
+	WINDOW *pad;	
+	getmaxyx(stdscr, height, width);
+
+	if(line_count > height)
+		pad=newpad(line_count+1, width);
+	else
+		pad=newpad(height+1, width);
+	keypad(pad, true);
+
+	fetch_and_display_current_directory(pad, fileNames, displayStrings);
 	
 	refresh();
 	move(curr_y_pos, curr_x_pos);
-	int ch, height, width, fileOpen=0, line_count=0, linesCount=0, y_before_fileOpen=0;
 	keypad(stdscr, true);
-	WINDOW *pad;
+	
+	filesystem::path currPath = filesystem::current_path();
+	
 	ch=wgetch(stdscr);
 	while(ch != 'q') {
 /*
@@ -180,14 +208,17 @@ only after the curr_y_pos crosses height of screen, the screen is rolled up. oth
                         }
 		}
 		else if ( ch == KEY_DOWN ) {
-			if(curr_y_pos == height-1 && linesCount == line_count-1)
-                                continue;
+			if( fileOpen == 0) {
+				if(curr_y_pos < (int)fileNames.size())
+					curr_y_pos++;
+			}
+			else if(curr_y_pos == height-1 && linesCount == line_count-1);
                         else if(fileOpen == 1 && curr_y_pos != line_count-1 && curr_y_pos == linesCount+height-1) {
                                 curr_y_pos++;
                                 linesCount++;
                                 prefresh(pad, linesCount, 0, 0, 0, height-1, width-1);
                         }
-                        else if(fileOpen == 0 || curr_y_pos != line_count-1)
+                        else if(curr_y_pos != line_count-1)
                                 curr_y_pos++;
                 
 		        if(fileOpen == 0)
@@ -198,25 +229,57 @@ only after the curr_y_pos crosses height of screen, the screen is rolled up. oth
                         }
 		}
 		else if ( ch == '\n' ) {
-			clear();
-			filesystem::directory_entry de(fileNames[curr_y_pos]);
-			if( de.is_directory() ) {
+			//clear();
+			if ( curr_y_pos > 0)
+				FILE = fileNames[curr_y_pos-1];
+			else {
+				if(currPath != "/")
+					FILE = currPath.parent_path();
+				else
+					FILE = currPath;
+			}
+			currPath = FILE;
+			filesystem::directory_entry de(FILE);
+			//filesystem::directory_entry de(fileNames[curr_y_pos]);
+			//printw("entering if\n");
+			if( de.is_directory() || curr_y_pos == 0 ) {
 				//printw("%s\n", fileNames[curr_y_pos].c_str());
-				fetch_and_display_current_directory(fileNames, displayStrings, fileNames[curr_y_pos]);
+				clear();
+
+				if(curr_y_pos > 0)
+					fetch_and_display_current_directory(pad, fileNames, displayStrings, fileNames[curr_y_pos-1]);
+				else
+					fetch_and_display_current_directory(pad, fileNames, displayStrings, FILE);
 				curr_y_pos=0;
 				refresh();
-				move(curr_y_pos, curr_x_pos);	
+				move(curr_y_pos, curr_x_pos);
 			}
 			else {
-				fileOpen=1;
+//				fileOpen=1;
+				string command = "", filePath = fileNames[curr_y_pos-1];
+				for(int i=0; i<(int)filePath.length();i++) {
+					if( filePath[i] == '/' || filePath[i] == '_' || filePath[i] == '.' || isalnum(filePath[i]) )
+						command+=filePath[i];
+					else if(filePath[i] == ' ' || filePath[i] == '(' || filePath[i] == ')')
+						command=command+'\\'+filePath[i];
+				}
+				string comm="open "+command;
+				//printw("%s\n", comm.c_str());
+				int retValue = system(comm.c_str());
+				if (retValue == -1 || WEXITSTATUS(retValue) != 0)
+					printw("problem in opening file: %s\n", command.c_str());
+				//else 
+				//	printw("%d\n", retValue);
+
+				/*
 				y_before_fileOpen=curr_y_pos;
-				ifstream inputFileCount(fileNames[curr_y_pos]);
+				ifstream inputFileCount(fileNames[curr_y_pos-1]);
 				string line;
 			
 				while (getline(inputFileCount, line))
 					line_count++;
 				inputFileCount.close();
-				ifstream inputFile(fileNames[curr_y_pos]);			
+				ifstream inputFile(fileNames[curr_y_pos-1]);			
 			
 				getmaxyx(stdscr, height, width);
 			
@@ -237,7 +300,8 @@ only after the curr_y_pos crosses height of screen, the screen is rolled up. oth
 				inputFile.close();
 				curr_y_pos=0;
 				wmove(pad, curr_y_pos, curr_x_pos);
-				prefresh(pad, curr_y_pos, 0, 0, 0, height-1, width-1);
+				prefresh(pad, curr_y_pos, 0, 0, 0, height-1, width-1);	
+				*/
 			}
 		}
 		else if ( ch == 27 && fileOpen == 1) { //For detecting escape key
@@ -248,6 +312,8 @@ only after the curr_y_pos crosses height of screen, the screen is rolled up. oth
 			//display_saved_dir_data(displayStrings, curr_y_pos);
 			for(auto itr = displayStrings.begin(); itr != displayStrings.end() ;itr++)
 				printw("%s", (*itr).c_str());
+			move(height-1, 0);
+			printw("%s\n",FILE.c_str());
 			refresh();
 			move(curr_y_pos, 0);
 		}
