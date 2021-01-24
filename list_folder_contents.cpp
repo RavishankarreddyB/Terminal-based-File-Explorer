@@ -348,6 +348,32 @@ only after the curr_y_pos crosses height of screen, the screen is rolled up. oth
 			refresh();
 			move(curr_y_pos, 0);
 		}
+		else if( ch == 101 || ch == 69 ) {
+                        //wclear(pad);
+                        noecho();
+                        WINDOW *status_bar = newwin(1,width, height-1, 0);
+                        keypad(status_bar, true);
+                        ch = wgetch(status_bar);
+                        command="";
+                        while( ch != 27) {
+                                if(ch == '\n') {
+                                        wclear(pad);
+                                        string goto_path = execute_command(status_bar, command);
+                                        if(goto_path == "")
+                                                pad = fetch_and_display_current_directory(pad, fileNames, displayStrings, &line_count, currPath, false);
+                                        else {
+                                                currPath=goto_path;
+                                                pad = fetch_and_display_current_directory(pad, fileNames, displayStrings, &line_count, currPath, false);
+                                        }
+                                }
+                                command+=ch;
+                                wprintw(status_bar, "%c", ch);
+                                wrefresh(status_bar);
+                                ch = wgetch(status_bar);
+                        }
+                        //prefresh(pad, contentsCount, 0, 0, 0, height-2, width-1);
+                        pad = fetch_and_display_current_directory(pad, fileNames, displayStrings, &line_count, currPath);
+                }
 		
 		ch = wgetch(pad);
 		//else if ( ch == KEY_RIGHT )
