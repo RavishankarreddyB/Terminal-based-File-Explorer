@@ -11,6 +11,8 @@
 
 #include <fstream>
 
+#include "commands.h"
+
 using namespace std;
 
 void file_permissions(const char *fileName, filesystem::directory_entry entry, string &permissions) {
@@ -42,7 +44,7 @@ void display_saved_dir_data(vector<string> &displayStrings, int curr_y_pos) {
 	move(curr_y_pos, 0);
 }
 
-WINDOW* fetch_and_display_current_directory(WINDOW *pad, vector<string> &fileNames, vector<string> &displayStrings, int *totalFilesDirs, string path="") {
+WINDOW* fetch_and_display_current_directory(WINDOW *pad, vector<string> &fileNames, vector<string> &displayStrings, int *totalFilesDirs, string path="", bool noStatusBar=true) {
 	string current_path, perms="", completeDisplay="";
 	int contentsCount=0, height=0, width=0, count=0;
 	getmaxyx(stdscr, height, width);
@@ -60,14 +62,14 @@ WINDOW* fetch_and_display_current_directory(WINDOW *pad, vector<string> &fileNam
 		//wprintw(pad, "contentsCount = %d, height = %d\n", contentsCount, height); 
 		scrollok(pad, true);
 		keypad(pad, true);
-		prefresh(pad, 0, 0, 0, 0, height-1, width-1);
+		prefresh(pad, 0, 0, 0, 0, height-2, width-1);
 	}
 	else if(contentsCount <= height-1 && *totalFilesDirs >= height) {
 		*totalFilesDirs = contentsCount;
 		pad = newpad(height+1, width);
 		scrollok(pad,true);
 		keypad(pad, true);
-		prefresh(pad, 0, 0, 0, 0, height-1, width-1);
+		prefresh(pad, 0, 0, 0, 0, height-2, width-1);
 	}
 	//printw("parent path = %s, root path = %s\n", current_path.c_str(), filesystem::current_path().root_directory().c_str());
 	
@@ -170,7 +172,14 @@ WINDOW* fetch_and_display_current_directory(WINDOW *pad, vector<string> &fileNam
 	//wmove(pad, height-1, 0);
 	//wprintw(pad, "%s\n",current_path.c_str());
 	wmove(pad, 0,0);
-	prefresh(pad, 0, 0, 0, 0, height-1, width-1);
+	prefresh(pad, 0, 0, 0, 0, height-2, width-1);
+	
+	if(noStatusBar) {
+		WINDOW *status_bar = newwin(1,width, height-1, 0);
+		wprintw(status_bar, "%s", current_path.c_str());
+		wrefresh(status_bar);
+	}
+
 	return pad;
 }
 
@@ -185,7 +194,7 @@ int main()
 	//int maxlines = LINES - 1;
 	//int maxcols = COLS - 1;
 	int curr_x_pos = 0, curr_y_pos = 0, ch, height, width, fileOpen=0, line_count=0, y_before_fileOpen=0, contentsCount=0;
-	string FILE;
+	string FILE, command="";
 	vector<string> fileNames, displayStrings;
 
 	WINDOW *pad;
@@ -200,10 +209,9 @@ int main()
 		pad=newpad(height+1, width);
 	keypad(pad, true);
 	keypad(stdscr, true);
-	refresh();
-
+	
 	pad = fetch_and_display_current_directory(pad, fileNames, displayStrings, &line_count);
-	prefresh(pad, contentsCount, 0, 0, 0, height-1, width-1);
+	prefresh(pad, contentsCount, 0, 0, 0, height-2, width-1);
 
 	wmove(pad, curr_y_pos, curr_x_pos);
 	keypad(stdscr, true);
@@ -222,31 +230,31 @@ only after the curr_y_pos crosses height of screen, the screen is rolled up. oth
                                 if( curr_y_pos == contentsCount ) {
                                         curr_y_pos--;
                                         contentsCount--;
-                                        prefresh(pad, contentsCount, 0, 0, 0, height-1, width-1);
+                                        prefresh(pad, contentsCount, 0, 0, 0, height-2, width-1);
                                 }
                                 else
                                         curr_y_pos--;
                         }
 			wmove(pad, curr_y_pos, curr_x_pos);
-			prefresh(pad, contentsCount, 0, 0,0, height-1, width-1);
+			prefresh(pad, contentsCount, 0, 0,0, height-2, width-1);
 		}
 		else if ( ch == KEY_DOWN ) {
-			if(curr_y_pos < height-1) {
+			if(curr_y_pos < height-2) {
 				if(curr_y_pos < (int)fileNames.size())
 					curr_y_pos++;
 			}
 			//else if(curr_y_pos == height-1 && contentsCount == line_count-1);
 			else if(curr_y_pos == line_count);
-                        else if(curr_y_pos != line_count && curr_y_pos == contentsCount+height-1) {
+                        else if(curr_y_pos != line_count && curr_y_pos == contentsCount+height-2) {
                                 curr_y_pos++;
                                 contentsCount++;
-                                prefresh(pad, contentsCount, 0, 0, 0, height-1, width-1);
+                                prefresh(pad, contentsCount, 0, 0, 0, height-2, width-1);
                         }
                         else if(curr_y_pos != contentsCount-1)
                                 curr_y_pos++;
                 
 			wmove(pad, curr_y_pos, curr_x_pos);
-			prefresh(pad,contentsCount, 0, 0,0, height-1, width-1);
+			prefresh(pad,contentsCount, 0, 0,0, height-2, width-1);
 		}
 		else if ( ch == '\n' ) {
 			//clear();
@@ -275,7 +283,7 @@ only after the curr_y_pos crosses height of screen, the screen is rolled up. oth
 				contentsCount=0;
 				//refresh();
 				wmove(pad, curr_y_pos, curr_x_pos);
-				prefresh(pad,contentsCount, 0, 0,0, height-1, width-1);
+				prefresh(pad,contentsCount, 0, 0,0, height-2, width-1);
 			}
 			else {
 //				fileOpen=1;
