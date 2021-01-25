@@ -358,6 +358,7 @@ only after the curr_y_pos crosses height of screen, the screen is rolled up. oth
                         while( ch != 27) {
                                 if(ch == '\n') {
                                         wclear(pad);
+					wclear(status_bar);
                                         string goto_path = execute_command(status_bar, command);
                                         if(goto_path == "")
                                                 pad = fetch_and_display_current_directory(pad, fileNames, displayStrings, &line_count, currPath, false);
@@ -366,15 +367,26 @@ only after the curr_y_pos crosses height of screen, the screen is rolled up. oth
                                                 pad = fetch_and_display_current_directory(pad, fileNames, displayStrings, &line_count, currPath, false);
                                         }
                                 }
-                                command+=ch;
-                                wprintw(status_bar, "%c", ch);
+				else if(ch == KEY_DC || ch == KEY_BACKSPACE || ch == 127) {
+					command=command.substr(0,size(command)-1);
+					wclear(status_bar);
+					wprintw(status_bar, "%s", command.c_str());
+				}
+				else {
+                                	command+=ch;
+                                	wprintw(status_bar, "%c", ch);
+				}
                                 wrefresh(status_bar);
                                 ch = wgetch(status_bar);
                         }
                         //prefresh(pad, contentsCount, 0, 0, 0, height-2, width-1);
-                        pad = fetch_and_display_current_directory(pad, fileNames, displayStrings, &line_count, currPath);
+                        //pad = fetch_and_display_current_directory(pad, fileNames, displayStrings, &line_count, currPath);
+			wclear(status_bar);
+			wprintw(status_bar, "%s", currPath.c_str());
+			wrefresh(status_bar);
                 }
-		
+		wmove(pad, curr_y_pos, curr_x_pos);
+		prefresh(pad, contentsCount, 0,0,0, height-2, width-1);
 		ch = wgetch(pad);
 		//else if ( ch == KEY_RIGHT )
 			//printw("right key is pressed\n");
