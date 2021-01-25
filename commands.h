@@ -41,15 +41,13 @@ string execute_command(WINDOW* status_bar, string command) {
 	vector<string> vec;
 	int returnValue;
 	split_string(command, vec);
-	//wprintw(status_bar, " %d", vec.size());
-	//wrefresh(status_bar);
 	string cmd="";
 	
 	if(vec[0] == "copy" || vec[0] == "move") {
 		if(vec[0] == "copy")
 			cmd+="cp -r ";
 		else 
-			cmd+="mv -r ";
+			cmd+="mv ";
 		int j;
 		for(j=1;j<(int)vec.size()-1;j++) {
 			if(vec[j].substr(0,2) == "./") {
@@ -90,8 +88,6 @@ string execute_command(WINDOW* status_bar, string command) {
 		}
 		returnValue = system(cmd.c_str());
 		wclear(status_bar);
-		wprintw(status_bar, "%s", cmd.c_str());
-		wrefresh(status_bar);
 	}
 
 	else if(vec[0] == "rename") {
@@ -128,8 +124,6 @@ string execute_command(WINDOW* status_bar, string command) {
                                 cmd=cmd+vec[2];
 			returnValue = system(cmd.c_str());
 			wclear(status_bar);
-			wprintw(status_bar, "%s", cmd.c_str());
-			wrefresh(status_bar);
 		}
 		
 	}
@@ -158,8 +152,6 @@ string execute_command(WINDOW* status_bar, string command) {
 			
 			returnValue = system(cmd.c_str());
                         wclear(status_bar);
-                        wprintw(status_bar, "%s", cmd.c_str());
-                        wrefresh(status_bar);
 		}
 	}
 	else if(vec[0] == "delete_file" || vec[1] == "delete_dir") {
@@ -186,8 +178,6 @@ string execute_command(WINDOW* status_bar, string command) {
 
 			returnValue = system(cmd.c_str());
                         wclear(status_bar);
-                        wprintw(status_bar, "%s", cmd.c_str());
-                        wrefresh(status_bar);
                 }
 	}
 	else if(vec[0] == "goto") {
@@ -212,8 +202,6 @@ string execute_command(WINDOW* status_bar, string command) {
 			}
 			returnValue = system(cmd.c_str());
                         wclear(status_bar);
-                        wprintw(status_bar, "%s", cmd.c_str());
-                        wrefresh(status_bar);
 			return beforeRemovingSpaces;
 		}
 	}
