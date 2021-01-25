@@ -8,6 +8,8 @@ File Explorer works in 2 modes -
 
 Last line of the terminal is used as a status bar. In normal mode, the current directory is displayed in status bar and in command mode, the user input is shown.
 
+ncurses is used to maintain windows.
+
 ## How to run ?
 
 `make`
