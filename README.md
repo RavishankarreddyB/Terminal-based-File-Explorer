@@ -10,6 +10,9 @@ Last line of the terminal is used as a status bar. In normal mode, the current d
 
 ncurses is used to maintain windows.
 
+## OS used
+MAC OS
+
 ## How to run ?
 
 `make`
